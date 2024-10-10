@@ -36,7 +36,7 @@ function create_subdomain($user_id,$template="bs3",$friendly="0"){
         pdo_query("create database `jol_$user_id`;\n");
         pdo_query("drop USER '$NEW_USER'@'localhost';");
         pdo_query("create USER '$NEW_USER'@'localhost' identified by '$NEW_PASS';");
-        pdo_query("grant all privileges on jol_$user_id.* to '$NEW_USER'@'localhost' ;");
+        pdo_query("grant all privileges on `jol\\_".str_replace("_","\\_",$user_id)."`.* to '$NEW_USER'@'localhost' ;");
         pdo_query("flush privileges;\n");
         $sql="use `jol_$user_id`;\n";
         $csql=file_get_contents("/home/judge/src/install/db.sql");
@@ -223,6 +223,7 @@ function is_valid_user_name($user_name){
       ($user_name[$i]>='a' && $user_name[$i]<='z') ||
       ($user_name[$i]>='A' && $user_name[$i]<='Z') ||
       ($user_name[$i]>='0' && $user_name[$i]<='9') ||
+      $user_name[$i]=='-'||
       $user_name[$i]=='_'||
       ($i==0 && $user_name[$i]=='*') 
     );

@@ -750,6 +750,7 @@ void make_diff_out_simple(FILE *f1, FILE *f2,char * prefix, int c1, int c2, cons
                                 need=0;
                         }
                         if(isprint(c1))fprintf(diff,"%c",c1);
+			//else fprintf(diff,"`Binary:0x%02x`",c1);
                 }
                 if(!feof(f1)&&fgets(buf,BUFFER_SIZE-1,f1)){
                         if(buf[strlen(buf)-1]=='\n') buf[strlen(buf)-1]='\0';
@@ -763,10 +764,11 @@ void make_diff_out_simple(FILE *f1, FILE *f2,char * prefix, int c1, int c2, cons
                         else if(c2==']') fprintf(diff,"］");
                         else if(c2=='(') fprintf(diff,"（");
                         else if(c2==')') fprintf(diff,"）");
-                        else if(isprint(c2))fprintf(diff,"%c",c2);
                         else if(c2=='\n'){
                                   fprintf(diff,"\n||");
                         }
+                        else if(isprint(c2))fprintf(diff,"%c",c2);
+                        else fprintf(diff,"`Binary:0x%02x`",c2);
                 }
                 if(!feof(f2)&&fgets(buf,BUFFER_SIZE-1,f2)){
                         str_replace(buf,"|","丨");
@@ -2733,23 +2735,25 @@ float raw_text_judge( char *infile, char *outfile, char *userfile, float *total_
         fclose(in);
         FILE *out=fopen(outfile,"r");
         int num=0;
-        char * user_answer=(char * )malloc(4096);
-        size_t user_length=4095;
-        size_t ans_length=4095;
+        char * user_answer=NULL;
+        size_t user_length;
+        size_t buf_length;
+        size_t ans_length;
         float m[total+1];
         char * ans[total+1];
         *total_mark=0;
         for(int i=1;i<=total;i++){
-                ans[i]=(char *)malloc(4096);
+                ans[i]=NULL;
+                buf_length=0;
                 if(fscanf(out,"%d",&num)!=1) return -2;
                 if(i==num){
                         if(fscanf(out,"%*[^\[][%f]",&m[num])!=1) return -3;
                         *total_mark+=m[num];
-                        ans_length=getline(&ans[i],&ans_length,out);
+                        ans_length=getline(&ans[i],&buf_length,out);
                         for(int j=ans_length-1;'\n'==ans[i][j]||'\r'==ans[i][j];j--){
                                 ans[i][j]='\0';
-                                trim(ans[i]);
                         }
+                        trim(ans[i]);
                 }else{
                 }
         }
@@ -2757,8 +2761,10 @@ float raw_text_judge( char *infile, char *outfile, char *userfile, float *total_
         FILE *user=fopen(userfile,"r");
         FILE *df=fopen("diff.out","a");
         for(int i=1;i<=total;i++){
+                user_answer=NULL;
+                buf_length=0;
                 if(fscanf(user,"%d",&num)==EOF) continue;
-                user_length=getline(&user_answer,&user_length,user);
+                user_length=getline(&user_answer,&buf_length,user);
                 int j=0;
                 for(j=user_length-1;'\n'==user_answer[j]||'\r'==user_answer[j];j--){
                         user_answer[j]='\0';
@@ -2775,10 +2781,9 @@ float raw_text_judge( char *infile, char *outfile, char *userfile, float *total_
                         break;
                 }
         }
-	for(int i=1;i<=total;i++){
+        for(int i=1;i<=total;i++){
                 free(ans[i]);
         }
- 
         free(user_answer);
         fclose(user);
         fclose(df);
@@ -3287,9 +3292,10 @@ int get_sim(int solution_id, int lang, int pid, int &sim_s_id)
         pf = fopen("sim", "r");
         if (!sim){
                 execute_cmd("/bin/mkdir ../data/%d/ac/ 2>/dev/null", pid);
-                execute_cmd("/bin/cp %s ../data/%d/ac/%d.%s 2>/dev/null", src_pth, pid, solution_id,
-                                        lang_ext[lang]);
-                //c cpp will
+                execute_cmd("/bin/chown www-data ../data/%d/ac/ 2>/dev/null", pid);
+                execute_cmd("/bin/cp %s ../data/%d/ac/%d.%s 2>/dev/null", src_pth, pid, solution_id,lang_ext[lang]);
+                execute_cmd("/bin/chown www-data ../data/%d/ac/%d.%s 2>/dev/null", pid, solution_id,lang_ext[lang]);
+ 		 //c cpp will
                 if (lang == 0)
                         execute_cmd("/bin/ln ../data/%d/ac/%d.%s ../data/%d/ac/%d.%s 2>/dev/null", pid,
                                                 solution_id, lang_ext[lang], pid, solution_id,
@@ -3451,7 +3457,7 @@ int main(int argc, char **argv)
 	double time_lmt;
 	char time_space_table[BUFFER_SIZE*100];
 	int time_space_index=0;
-
+        umask(0077);
 	init_parameters(argc, argv, solution_id, runner_id);
 
 	init_judge_conf();
